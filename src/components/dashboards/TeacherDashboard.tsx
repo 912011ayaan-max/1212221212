@@ -41,8 +41,6 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
   const [attendance, setAttendance] = useState<Record<string, 'present' | 'absent'>>({});
   const [existingAttendance, setExistingAttendance] = useState<Record<string, AttendanceRecord>>({});
   const [gradeInput, setGradeInput] = useState<Record<string, string>>({});
-  const [gradeTitleInput, setGradeTitleInput] = useState<Record<string, string>>({});
-  const [gradeNotesInput, setGradeNotesInput] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -135,16 +133,11 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
   };
 
   const handleSaveGrade = async (studentId: string, homeworkId: string) => {
-    const key = `${studentId}-${homeworkId}`;
-    const grade = gradeInput[key];
+    const grade = gradeInput[`${studentId}-${homeworkId}`];
     if (!grade) { toast({ title: "Error", description: "Enter a grade", variant: "destructive" }); return; }
     const hw = homework.find(h => h.id === homeworkId);
-    const title = gradeTitleInput[key] || '';
-    const notes = gradeNotesInput[key] || '';
-    await dbPush(`grades/${studentId}`, { subject: hw?.subject || 'Assignment', grade, title, notes, homeworkId, teacherId: user?.id, teacherName: user?.name, date: new Date().toISOString() });
-    setGradeInput({ ...gradeInput, [key]: '' });
-    setGradeTitleInput({ ...gradeTitleInput, [key]: '' });
-    setGradeNotesInput({ ...gradeNotesInput, [key]: '' });
+    await dbPush(`grades/${studentId}`, { subject: hw?.subject || 'Assignment', grade, homeworkId, teacherId: user?.id, teacherName: user?.name, date: new Date().toISOString() });
+    setGradeInput({ ...gradeInput, [`${studentId}-${homeworkId}`]: '' });
     toast({ title: "Success", description: "Grade saved" });
   };
 
@@ -335,8 +328,6 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
                                 <div className="flex items-center gap-2">
                                   <Button size="sm" variant="ghost" onClick={() => setViewingSubmission(sub)}><Eye className="w-4 h-4" /></Button>
                                   <Input placeholder="Grade" className="w-20 h-8 text-sm" value={gradeInput[`${sub.studentId}-${hw.id}`] || sub.grade || ''} onChange={(e) => setGradeInput({...gradeInput, [`${sub.studentId}-${hw.id}`]: e.target.value})} />
-                                  <Input placeholder="Title" className="w-28 h-8 text-sm" value={gradeTitleInput[`${sub.studentId}-${hw.id}`] || ''} onChange={(e) => setGradeTitleInput({...gradeTitleInput, [`${sub.studentId}-${hw.id}`]: e.target.value})} />
-                                  <Input placeholder="Notes" className="w-36 h-8 text-sm" value={gradeNotesInput[`${sub.studentId}-${hw.id}`] || ''} onChange={(e) => setGradeNotesInput({...gradeNotesInput, [`${sub.studentId}-${hw.id}`]: e.target.value})} />
                                   <Button size="sm" variant="outline" onClick={() => handleSaveGrade(sub.studentId, hw.id)}><Check className="w-3 h-3" /></Button>
                                 </div>
                               </div>
@@ -420,16 +411,6 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
                       value={gradeInput[`${viewingSubmission.studentId}-${viewingSubmission.homeworkId}`] || viewingSubmission.grade || ''} 
                       onChange={(e) => setGradeInput({...gradeInput, [`${viewingSubmission.studentId}-${viewingSubmission.homeworkId}`]: e.target.value})} 
                     />
-                    <Input 
-                      placeholder="Title (optional)" 
-                      value={gradeTitleInput[`${viewingSubmission.studentId}-${viewingSubmission.homeworkId}`] || ''} 
-                      onChange={(e) => setGradeTitleInput({...gradeTitleInput, [`${viewingSubmission.studentId}-${viewingSubmission.homeworkId}`]: e.target.value})} 
-                    />
-                    <Input 
-                      placeholder="Notes (optional)" 
-                      value={gradeNotesInput[`${viewingSubmission.studentId}-${viewingSubmission.homeworkId}`] || ''} 
-                      onChange={(e) => setGradeNotesInput({...gradeNotesInput, [`${viewingSubmission.studentId}-${viewingSubmission.homeworkId}`]: e.target.value})} 
-                    />
                     <Button onClick={() => {
                       handleSaveGrade(viewingSubmission.studentId, viewingSubmission.homeworkId);
                       setViewingSubmission(null);
@@ -460,25 +441,19 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
                     <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center"><span className="font-bold text-sm text-primary-foreground">{student.name.charAt(0)}</span></div>
                     <p className="font-medium">{student.name}</p>
                   </div>
-              <div className="flex items-center gap-3">
-                <Input placeholder="Grade" className="w-24" value={gradeInput[student.id] || ''} onChange={(e) => setGradeInput({...gradeInput, [student.id]: e.target.value})} />
-                <Input placeholder="Title" className="w-32" value={gradeTitleInput[student.id] || ''} onChange={(e) => setGradeTitleInput({...gradeTitleInput, [student.id]: e.target.value})} />
-                <Input placeholder="Notes" className="w-40" value={gradeNotesInput[student.id] || ''} onChange={(e) => setGradeNotesInput({...gradeNotesInput, [student.id]: e.target.value})} />
-                <Button className="bg-gradient-primary" onClick={() => {
-                  const grade = gradeInput[student.id];
-                  if (!grade) return;
-                  const cls = myClasses.find(c => c.id === selectedClass);
-                  const title = gradeTitleInput[student.id] || '';
-                  const notes = gradeNotesInput[student.id] || '';
-                  dbPush(`grades/${student.id}`, { subject: 'General', grade, title, notes, className: cls?.name || '', teacherId: user?.id, teacherName: user?.name, date: new Date().toISOString() });
-                  setGradeInput({...gradeInput, [student.id]: ''});
-                  setGradeTitleInput({...gradeTitleInput, [student.id]: ''});
-                  setGradeNotesInput({...gradeNotesInput, [student.id]: ''});
-                  toast({ title: "Success", description: "Grade saved" });
-                }}><Check className="w-4 h-4" /></Button>
-              </div>
-            </div>
-          ))}
+                  <div className="flex items-center gap-3">
+                    <Input placeholder="Grade" className="w-32" value={gradeInput[student.id] || ''} onChange={(e) => setGradeInput({...gradeInput, [student.id]: e.target.value})} />
+                    <Button className="bg-gradient-primary" onClick={() => {
+                      const grade = gradeInput[student.id];
+                      if (!grade) return;
+                      const cls = myClasses.find(c => c.id === selectedClass);
+                      dbPush(`grades/${student.id}`, { subject: 'General', grade, className: cls?.name || '', teacherId: user?.id, teacherName: user?.name, date: new Date().toISOString() });
+                      setGradeInput({...gradeInput, [student.id]: ''});
+                      toast({ title: "Success", description: "Grade saved" });
+                    }}><Check className="w-4 h-4" /></Button>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

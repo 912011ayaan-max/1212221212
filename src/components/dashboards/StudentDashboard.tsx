@@ -16,7 +16,7 @@ import {
 
 interface Homework { id: string; title: string; description: string; dueDate: string; classId: string; className: string; subject: string; createdAt: string; }
 interface AttendanceRecord { id: string; date: string; status: 'present' | 'absent'; }
-interface GradeRecord { id: string; subject: string; grade: string; date: string; teacherName?: string; title?: string; notes?: string; }
+interface GradeRecord { id: string; subject: string; grade: string; date: string; teacherName?: string; }
 interface Announcement { id: string; title: string; content: string; createdAt: string; author?: string; priority?: string; }
 interface ClassAnnouncement { id: string; title: string; content: string; classId: string; className: string; teacherName: string; createdAt: string; }
 interface Complaint { id: string; studentId: string; studentName: string; classId: string; className: string; subject: string; message: string; createdAt: string; status: 'sent' | 'read' | 'resolved'; read: boolean; sender?: 'student' | 'admin'; }
@@ -268,11 +268,7 @@ const StudentDashboard = forwardRef<HTMLDivElement, StudentDashboardProps>(({ cu
                   <div key={grade.id} className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-border/50 animate-fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><Star className="w-5 h-5 text-primary" /></div>
-                      <div>
-                        <p className="font-medium">{grade.subject}{grade.title ? `: ${grade.title}` : ''}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(grade.date).toLocaleDateString()}{grade.teacherName && ` • ${grade.teacherName}`}</p>
-                        {grade.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{grade.notes}</p>}
-                      </div>
+                      <div><p className="font-medium">{grade.subject}</p><p className="text-xs text-muted-foreground">{new Date(grade.date).toLocaleDateString()}{grade.teacherName && ` • ${grade.teacherName}`}</p></div>
                     </div>
                     <span className="text-2xl font-display font-bold text-primary">{grade.grade}</span>
                   </div>
@@ -415,8 +411,7 @@ const StudentDashboard = forwardRef<HTMLDivElement, StudentDashboardProps>(({ cu
               <Megaphone className="w-5 h-5 text-primary" />
             </div>
             <div className="flex flex-col">
-              <span className="font-semibold text-sm">Principal</span>
-              <span className="text-xs text-muted-foreground">School Administration</span>
+              <span className="font-semibold text-sm">Admin</span>
             </div>
           </div>
         </div>
@@ -432,7 +427,7 @@ const StudentDashboard = forwardRef<HTMLDivElement, StudentDashboardProps>(({ cu
           {/* Welcome Message (System) */}
           <div className="flex justify-start">
             <div className="max-w-[70%] bg-white dark:bg-muted p-3 rounded-2xl rounded-tl-none shadow-sm relative group">
-              <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">Hello {user?.name}, how can we help you today? Feel free to send a message to the Principal.</p>
+              <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">Hello {user?.name}, how can we help you today? Feel free to send a message to the Admin.</p>
               <div className="flex justify-end items-center gap-1 mt-1">
                 <span className="text-[10px] text-muted-foreground/80">System</span>
               </div>
@@ -531,11 +526,7 @@ const StudentDashboard = forwardRef<HTMLDivElement, StudentDashboardProps>(({ cu
                 <div key={grade.id} className="flex items-center justify-between p-4 hover:bg-muted/30 animate-fade-in" style={{ animationDelay: `${i * 0.03}s` }}>
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center"><Star className="w-6 h-6 text-primary-foreground" /></div>
-                    <div>
-                      <p className="font-medium">{grade.subject}{grade.title ? `: ${grade.title}` : ''}</p>
-                      <p className="text-sm text-muted-foreground">{new Date(grade.date).toLocaleDateString()}{grade.teacherName && ` • ${grade.teacherName}`}</p>
-                      {grade.notes && <p className="text-xs text-muted-foreground mt-1">{grade.notes}</p>}
-                    </div>
+                    <div><p className="font-medium">{grade.subject}</p><p className="text-sm text-muted-foreground">{new Date(grade.date).toLocaleDateString()}{grade.teacherName && ` • ${grade.teacherName}`}</p></div>
                   </div>
                   <span className="text-3xl font-display font-bold text-primary">{grade.grade}</span>
                 </div>
