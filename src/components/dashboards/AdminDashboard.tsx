@@ -26,6 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 interface Teacher { id: string; name: string; username: string; password: string; subject: string; }
 interface Class { id: string; name: string; grade: string; teacherId: string; teacherName: string; secondaryTeachers?: { id: string; name: string }[]; }
 interface Student { id: string; name: string; username: string; password: string; classId: string; className: string; }
+interface Supervisor { id: string; name: string; username: string; password: string; assignedClassIds: string[]; }
 interface Announcement { id: string; title: string; content: string; priority: 'normal' | 'important' | 'urgent'; createdAt: string; author: string; }
 interface Complaint { id: string; studentId: string; studentName: string; classId: string; className: string; subject: string; message: string; createdAt: string; status: 'sent' | 'read' | 'resolved'; read: boolean; sender?: 'student' | 'admin'; }
 
@@ -35,6 +36,7 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
@@ -44,6 +46,7 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
   const [newTeacher, setNewTeacher] = useState({ name: '', username: '', password: '', subject: '' });
   const [newClass, setNewClass] = useState({ name: '', grade: '', teacherId: '' });
   const [newStudent, setNewStudent] = useState({ name: '', username: '', password: '', classId: '' });
+  const [newSupervisor, setNewSupervisor] = useState({ name: '', username: '', password: '', assignedClassIds: [] as string[] });
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', priority: 'normal' as const });
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [manageClass, setManageClass] = useState({ name: '', grade: '', teacherId: '', secondaryTeacherIds: [] as string[] });
@@ -55,6 +58,7 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
       dbListen('teachers', (data) => setTeachers(data ? Object.entries(data).map(([id, t]: [string, any]) => ({ id, ...t })) : [])),
       dbListen('classes', (data) => setClasses(data ? Object.entries(data).map(([id, c]: [string, any]) => ({ id, ...c })) : [])),
       dbListen('students', (data) => setStudents(data ? Object.entries(data).map(([id, s]: [string, any]) => ({ id, ...s })) : [])),
+      dbListen('supervisors', (data) => setSupervisors(data ? Object.entries(data).map(([id, s]: [string, any]) => ({ id, ...s })) : [])),
       dbListen('announcements', (data) => setAnnouncements(data ? Object.entries(data).map(([id, a]: [string, any]) => ({ id, ...a })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [])),
       dbListen('complaints', (data) => setComplaints(data ? Object.entries(data).map(([id, c]: [string, any]) => ({ id, ...c })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : []))
     ];
@@ -147,6 +151,15 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
     await dbPush('students', { ...newStudent, className: cls?.name || 'Unassigned', createdAt: new Date().toISOString() });
     setNewStudent({ name: '', username: '', password: '', classId: '' });
     toast({ title: "Success", description: "Student enrolled successfully" });
+  };
+
+  const handleAddSupervisor = async () => {
+    if (!newSupervisor.name || !newSupervisor.username || !newSupervisor.password || newSupervisor.assignedClassIds.length === 0) {
+      toast({ title: "Error", description: "Please fill all fields and assign at least one class", variant: "destructive" }); return;
+    }
+    await dbPush('supervisors', { ...newSupervisor, createdAt: new Date().toISOString() });
+    setNewSupervisor({ name: '', username: '', password: '', assignedClassIds: [] });
+    toast({ title: "Success", description: "Supervisor added successfully" });
   };
 
   const handleAddAnnouncement = async () => {
@@ -420,6 +433,7 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
                 { icon: UserPlus, label: 'Add Teacher', panel: 'teacher' },
                 { icon: School, label: 'Create Class', panel: 'class' },
                 { icon: GraduationCap, label: 'Enroll Student', panel: 'student' },
+                { icon: Users, label: 'Add Supervisor', panel: 'supervisor' },
               ].map((action, i) => (
                 <Button key={i} variant="outline" className="w-full justify-start hover:bg-primary hover:text-primary-foreground transition-all" onClick={() => setShowPanel(action.panel)}>
                   <action.icon className="w-4 h-4 mr-3" /> {action.label}
@@ -540,6 +554,45 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
               </select>
             </div>
             <Button className="w-full bg-gradient-primary" onClick={handleAddStudent}><Save className="w-4 h-4 mr-2" />Enroll Student</Button>
+          </div>
+        </SlidePanel>
+
+        <SlidePanel isOpen={showPanel === 'supervisor'} onClose={() => setShowPanel(null)} title="Add New Supervisor">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Full Name</label>
+              <Input placeholder="Supervisor's full name" value={newSupervisor.name} onChange={(e) => setNewSupervisor({...newSupervisor, name: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Username</label>
+              <Input placeholder="Login username" value={newSupervisor.username} onChange={(e) => setNewSupervisor({...newSupervisor, username: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Password</label>
+              <Input type="password" placeholder="Set password" value={newSupervisor.password} onChange={(e) => setNewSupervisor({...newSupervisor, password: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Assign Classes</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 border rounded-lg">
+                {classes.map(c => (
+                  <label key={c.id} className="flex items-center gap-2 p-2 rounded-lg border border-input cursor-pointer hover:bg-muted/50">
+                    <Checkbox 
+                      checked={newSupervisor.assignedClassIds.includes(c.id)}
+                      onCheckedChange={(checked) => {
+                        setNewSupervisor(prev => {
+                          const ids = checked 
+                            ? [...prev.assignedClassIds, c.id]
+                            : prev.assignedClassIds.filter(id => id !== c.id);
+                          return { ...prev, assignedClassIds: ids };
+                        });
+                      }}
+                    />
+                    <span className="text-sm">{c.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <Button className="w-full bg-gradient-primary" onClick={handleAddSupervisor}><Save className="w-4 h-4 mr-2" />Save Supervisor</Button>
           </div>
         </SlidePanel>
       </div>

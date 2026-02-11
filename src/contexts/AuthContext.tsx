@@ -10,6 +10,7 @@ export interface User {
   role: UserRole;
   classId?: string;
   className?: string;
+  assignedClassIds?: string[];
   passwordChanged?: boolean;
 }
 
@@ -103,7 +104,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               id: key,
               username: supervisor.username,
               name: supervisor.name,
-              role: 'supervisor'
+              role: 'supervisor',
+              assignedClassIds: supervisor.assignedClassIds || []
             };
             setUser(userData);
             localStorage.setItem('crescentUser', JSON.stringify(userData));

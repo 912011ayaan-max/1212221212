@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { dbPush, dbListen } from '@/lib/firebase';
 import SlidePanel from '@/components/ui/SlidePanel';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Users, GraduationCap, BookOpen, Plus, 
   Megaphone, UserPlus, School, Bell, Calendar
@@ -13,11 +14,12 @@ import {
 interface Teacher { id: string; name: string; username: string; password: string; subject: string; }
 interface Class { id: string; name: string; grade: string; teacherId: string; teacherName: string; }
 interface Student { id: string; name: string; username: string; password: string; classId: string; className: string; }
-interface Announcement { id: string; title: string; content: string; priority: 'normal' | 'important' | 'urgent'; createdAt: string; author: string; }
+interface Announcement { id: string; title: string; content: string; priority: 'normal' | 'important' | 'urgent'; createdAt: string; author: string; classId?: string; }
 
 interface SupervisorDashboardProps { currentPage: string; }
 
 const SupervisorDashboard = forwardRef<HTMLDivElement, SupervisorDashboardProps>(({ currentPage }, ref) => {
+  const { user } = useAuth();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -28,19 +30,35 @@ const SupervisorDashboard = forwardRef<HTMLDivElement, SupervisorDashboardProps>
   const [newTeacher, setNewTeacher] = useState({ name: '', username: '', password: '', subject: '' });
   const [newClass, setNewClass] = useState({ name: '', grade: '', teacherId: '' });
   const [newStudent, setNewStudent] = useState({ name: '', username: '', password: '', classId: '' });
-  const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', priority: 'normal' as const });
+  const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', priority: 'normal' as const, classId: '' });
   
   const { toast } = useToast();
 
   useEffect(() => {
     const unsubs = [
       dbListen('teachers', (data) => setTeachers(data ? Object.entries(data).map(([id, t]: [string, any]) => ({ id, ...t })) : [])),
-      dbListen('classes', (data) => setClasses(data ? Object.entries(data).map(([id, c]: [string, any]) => ({ id, ...c })) : [])),
-      dbListen('students', (data) => setStudents(data ? Object.entries(data).map(([id, s]: [string, any]) => ({ id, ...s })) : [])),
-      dbListen('announcements', (data) => setAnnouncements(data ? Object.entries(data).map(([id, a]: [string, any]) => ({ id, ...a })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [])),
+      dbListen('classes', (data) => {
+        const allContextClasses = data ? Object.entries(data).map(([id, c]: [string, any]) => ({ id, ...c })) : [];
+        // Filter classes assigned to this supervisor
+        const filteredClasses = allContextClasses.filter(c => user?.assignedClassIds?.includes(c.id));
+        setClasses(filteredClasses);
+      }),
+      dbListen('students', (data) => {
+        const allStudents = data ? Object.entries(data).map(([id, s]: [string, any]) => ({ id, ...s })) : [];
+        // Only show students in supervisor's assigned classes
+        const filteredStudents = allStudents.filter(s => user?.assignedClassIds?.includes(s.classId));
+        setStudents(filteredStudents);
+      }),
+      dbListen('announcements', (data) => {
+        const allAnnouncements = data ? Object.entries(data).map(([id, a]: [string, any]) => ({ id, ...a })) : [];
+        // Show general announcements OR those for assigned classes
+        const filteredAnnouncements = allAnnouncements.filter(a => !a.classId || user?.assignedClassIds?.includes(a.classId))
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setAnnouncements(filteredAnnouncements);
+      }),
     ];
     return () => unsubs.forEach(u => u());
-  }, []);
+  }, [user?.assignedClassIds]);
 
   const handleAddTeacher = async () => {
     if (!newTeacher.name || !newTeacher.username || !newTeacher.password || !newTeacher.subject) {
@@ -57,10 +75,16 @@ const SupervisorDashboard = forwardRef<HTMLDivElement, SupervisorDashboardProps>
       toast({ title: "Error", description: "Please fill all fields", variant: "destructive" }); return;
     }
     const teacher = teachers.find(t => t.id === newClass.teacherId);
-    await dbPush('classes', { ...newClass, teacherName: teacher?.name || 'Unassigned', createdAt: new Date().toISOString() });
+    const result = await dbPush('classes', { ...newClass, teacherName: teacher?.name || 'Unassigned', createdAt: new Date().toISOString() });
+    
+    // Auto-assign this new class to the supervisor who created it
+    if (result && user?.id) {
+      const supervisors = await dbPush('supervisors/' + user.id + '/assignedClassIds', result.name);
+    }
+
     setNewClass({ name: '', grade: '', teacherId: '' });
     setShowPanel(null);
-    toast({ title: "Success", description: "Class created successfully" });
+    toast({ title: "Success", description: "Class created and assigned to you" });
   };
 
   const handleAddStudent = async () => {
@@ -75,13 +99,13 @@ const SupervisorDashboard = forwardRef<HTMLDivElement, SupervisorDashboardProps>
   };
 
   const handleAddAnnouncement = async () => {
-    if (!newAnnouncement.title || !newAnnouncement.content) {
-      toast({ title: "Error", description: "Please fill all fields", variant: "destructive" }); return;
+    if (!newAnnouncement.title || !newAnnouncement.content || !newAnnouncement.classId) {
+      toast({ title: "Error", description: "Please fill all fields and select a class", variant: "destructive" }); return;
     }
-    await dbPush('announcements', { ...newAnnouncement, author: 'Supervisor', createdAt: new Date().toISOString() });
-    setNewAnnouncement({ title: '', content: '', priority: 'normal' });
+    await dbPush('announcements', { ...newAnnouncement, author: `Supervisor (${user?.name})`, createdAt: new Date().toISOString() });
+    setNewAnnouncement({ title: '', content: '', priority: 'normal', classId: '' });
     setShowPanel(null);
-    toast({ title: "Success", description: "Announcement posted" });
+    toast({ title: "Success", description: "Announcement posted to class" });
   };
 
   const StatCard = ({ title, value, icon: Icon, gradient, delay = 0 }: any) => (
@@ -205,10 +229,14 @@ const SupervisorDashboard = forwardRef<HTMLDivElement, SupervisorDashboardProps>
           <div className="space-y-4">
             <Input placeholder="Title" value={newAnnouncement.title} onChange={e => setNewAnnouncement({...newAnnouncement, title: e.target.value})} />
             <textarea className="w-full p-2 border rounded-md h-32" placeholder="Content" value={newAnnouncement.content} onChange={e => setNewAnnouncement({...newAnnouncement, content: e.target.value})} />
+            <select className="w-full p-2 border rounded-md" value={newAnnouncement.classId} onChange={e => setNewAnnouncement({...newAnnouncement, classId: e.target.value})}>
+              <option value="">Target Class</option>
+              {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
             <select className="w-full p-2 border rounded-md" value={newAnnouncement.priority} onChange={e => setNewAnnouncement({...newAnnouncement, priority: e.target.value as any})}>
-              <option value="normal">Normal</option>
-              <option value="important">Important</option>
-              <option value="urgent">Urgent</option>
+              <option value="normal">Normal Priority</option>
+              <option value="important">Important Priority</option>
+              <option value="urgent">Urgent Priority</option>
             </select>
             <Button className="w-full bg-gradient-warm" onClick={handleAddAnnouncement}>Post Notice</Button>
           </div>
