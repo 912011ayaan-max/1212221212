@@ -7,11 +7,11 @@ import SlidePanel from '@/components/ui/SlidePanel';
 import TimetablePanel from './TimetablePanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { dbListen, dbPush } from '@/lib/firebase';
+import { dbListen, dbPush, dbUpdate } from '@/lib/firebase';
 import { 
   Calendar, ClipboardList, FileText, Bell, Check, X, 
   TrendingUp, Award, Clock, BookOpen, Megaphone, Upload,
-  CheckCircle2, AlertCircle, BarChart3, Star, Send
+  CheckCircle2, AlertCircle, BarChart3, Star, Send, Settings, Lock
 } from 'lucide-react';
 
 interface Homework { id: string; title: string; description: string; dueDate: string; classId: string; className: string; subject: string; createdAt: string; }
@@ -25,14 +25,17 @@ interface Submission { id: string; homeworkId: string; studentId: string; studen
 interface StudentDashboardProps { currentPage: string; }
 
 const StudentDashboard = forwardRef<HTMLDivElement, StudentDashboardProps>(({ currentPage }, ref) => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { toast } = useToast();
   const [showSubmitPanel, setShowSubmitPanel] = useState(false);
+  const [showPasswordPanel, setShowPasswordPanel] = useState(false);
   const [selectedHomework, setSelectedHomework] = useState<Homework | null>(null);
   const [submissionText, setSubmissionText] = useState('');
   const [submissionLink, setSubmissionLink] = useState('');
   const [complaintSubject, setComplaintSubject] = useState('');
   const [complaintMessage, setComplaintMessage] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [homework, setHomework] = useState<Homework[]>([]);
   const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -116,6 +119,79 @@ const StudentDashboard = forwardRef<HTMLDivElement, StudentDashboardProps>(({ cu
     });
     setComplaintMessage('');
   };
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast({ title: "Error", description: "Please fill all fields", variant: "destructive" });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await dbUpdate(`students/${user?.id}`, {
+        password: newPassword,
+        passwordChanged: true
+      });
+      
+      updateUser({ passwordChanged: true });
+      setShowPasswordPanel(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      toast({ title: "Success", description: "Password changed successfully. This was your one-time change." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to change password", variant: "destructive" });
+    }
+  };
+
+  const passwordPanel = (
+    <SlidePanel
+      isOpen={showPasswordPanel}
+      onClose={() => setShowPasswordPanel(false)}
+      title="Change Password"
+    >
+      <div className="space-y-6">
+        <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
+          <p className="text-sm text-muted-foreground">
+            You can only change your password once. Please make sure to remember your new password.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">New Password</label>
+          <Input
+            type="password"
+            placeholder="Enter new password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">Confirm New Password</label>
+          <Input
+            type="password"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </div>
+
+        <Button className="w-full bg-gradient-primary" onClick={handlePasswordChange}>
+          <Lock className="w-4 h-4 mr-2" />
+          Update Password
+        </Button>
+      </div>
+    </SlidePanel>
+  );
 
   const submissionPanel = (
     <SlidePanel
@@ -308,6 +384,7 @@ const StudentDashboard = forwardRef<HTMLDivElement, StudentDashboardProps>(({ cu
             </CardContent>
           </Card>
         )}
+        {submissionPanel}
       </div>
     );
   }
@@ -535,6 +612,60 @@ const StudentDashboard = forwardRef<HTMLDivElement, StudentDashboardProps>(({ cu
             </div>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  if (currentPage === 'settings') {
+    return (
+      <div ref={ref} className="space-y-6">
+        <div>
+          <h3 className="text-2xl font-display font-bold">Settings</h3>
+          <p className="text-muted-foreground">Manage your account and preferences</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="shadow-xl border-0 hover-lift overflow-hidden">
+            <div className="h-1.5 bg-gradient-primary"></div>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-primary" />
+                Security
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-border/50">
+                <div>
+                  <p className="font-semibold">Password</p>
+                  <p className="text-sm text-muted-foreground">
+                    {user?.passwordChanged 
+                      ? "You have already changed your password." 
+                      : "Change your account password (one-time only)."}
+                  </p>
+                </div>
+                {!user?.passwordChanged && (
+                  <Button variant="outline" size="sm" onClick={() => setShowPasswordPanel(true)}>
+                    Change
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-xl border-0 hover-lift overflow-hidden opacity-60">
+            <div className="h-1.5 bg-muted"></div>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="w-5 h-5 text-muted-foreground" />
+                Preferences
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground italic">Additional settings coming soon...</p>
+            </CardContent>
+          </Card>
+        </div>
+        {passwordPanel}
       </div>
     );
   }

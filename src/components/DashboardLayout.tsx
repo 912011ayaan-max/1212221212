@@ -54,6 +54,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, currentPage
           { label: 'Analytics', icon: <BarChart3 className="w-5 h-5" />, path: 'reports' },
           { label: 'Settings', icon: <Settings className="w-5 h-5" />, path: 'settings' },
         ];
+      case 'supervisor':
+        return [
+          { label: 'Dashboard', icon: <Home className="w-5 h-5" />, path: 'dashboard' },
+          { label: 'Settings', icon: <Settings className="w-5 h-5" />, path: 'settings' },
+        ];
       case 'teacher':
         return [
           { label: 'Dashboard', icon: <Home className="w-5 h-5" />, path: 'dashboard' },
@@ -84,6 +89,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, currentPage
   const getRoleLabel = () => {
     switch (user?.role) {
       case 'admin': return 'Principal';
+      case 'supervisor': return 'Supervisor';
       case 'teacher': return 'Teacher';
       case 'student': return 'Student';
       default: return 'User';
@@ -93,6 +99,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, currentPage
   const getRoleBadgeClass = () => {
     switch (user?.role) {
       case 'admin': return 'bg-secondary text-secondary-foreground';
+      case 'supervisor': return 'bg-accent text-accent-foreground';
       case 'teacher': return 'bg-primary text-primary-foreground';
       case 'student': return 'bg-green-light text-primary-foreground';
       default: return 'bg-muted text-muted-foreground';

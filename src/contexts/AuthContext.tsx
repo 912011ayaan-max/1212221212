@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { dbGet } from '@/lib/firebase';
 
-export type UserRole = 'admin' | 'teacher' | 'student';
+export type UserRole = 'admin' | 'teacher' | 'student' | 'supervisor';
 
 export interface User {
   id: string;
@@ -10,12 +10,14 @@ export interface User {
   role: UserRole;
   classId?: string;
   className?: string;
+  passwordChanged?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  updateUser: (data: Partial<User>) => void;
   isLoading: boolean;
 }
 
@@ -82,7 +84,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               name: student.name,
               role: 'student',
               classId: student.classId,
-              className: student.className
+              className: student.className,
+              passwordChanged: student.passwordChanged || false
+            };
+            setUser(userData);
+            localStorage.setItem('crescentUser', JSON.stringify(userData));
+            return { success: true };
+          }
+        }
+      }
+
+      // Check supervisors
+      const supervisors = await dbGet('supervisors');
+      if (supervisors) {
+        for (const [key, supervisor] of Object.entries(supervisors as Record<string, any>)) {
+          if (supervisor.username === username && supervisor.password === password) {
+            const userData: User = {
+              id: key,
+              username: supervisor.username,
+              name: supervisor.name,
+              role: 'supervisor'
             };
             setUser(userData);
             localStorage.setItem('crescentUser', JSON.stringify(userData));
@@ -103,8 +124,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('crescentUser');
   };
 
+  const updateUser = (data: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...data };
+      setUser(updatedUser);
+      localStorage.setItem('crescentUser', JSON.stringify(updatedUser));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
