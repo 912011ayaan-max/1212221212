@@ -5,7 +5,6 @@ import DashboardLayout from '@/components/DashboardLayout';
 import AdminDashboard from '@/components/dashboards/AdminDashboard';
 import TeacherDashboard from '@/components/dashboards/TeacherDashboard';
 import StudentDashboard from '@/components/dashboards/StudentDashboard';
-import SupervisorDashboard from '@/components/dashboards/SupervisorDashboard';
 
 const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -39,8 +38,6 @@ const AppContent: React.FC = () => {
         return <TeacherDashboard currentPage={currentPage} />;
       case 'student':
         return <StudentDashboard currentPage={currentPage} />;
-      case 'supervisor':
-        return <SupervisorDashboard currentPage={currentPage} />;
       default:
         return null;
     }

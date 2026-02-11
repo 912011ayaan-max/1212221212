@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { dbGet } from '@/lib/firebase';
 
-export type UserRole = 'admin' | 'teacher' | 'student' | 'supervisor';
+export type UserRole = 'admin' | 'teacher' | 'student';
 
 export interface User {
   id: string;
@@ -10,7 +10,6 @@ export interface User {
   role: UserRole;
   classId?: string;
   className?: string;
-  assignedClassIds?: string[];
   passwordChanged?: boolean;
 }
 
@@ -79,6 +78,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (students) {
         for (const [key, student] of Object.entries(students as Record<string, any>)) {
           if (student.username === username && student.password === password) {
+            // Check if user is trying to login with an old password if they have already changed it
+            // However, since the password in DB is updated during change, 
+            // the check student.password === password already handles this.
+            // If the user changed their password to 'new123', the DB 'password' field is 'new123'.
+            // If they try to login with 'old123', it won't match student.password ('new123').
+            
             const userData: User = {
               id: key,
               username: student.username,
@@ -87,25 +92,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               classId: student.classId,
               className: student.className,
               passwordChanged: student.passwordChanged || false
-            };
-            setUser(userData);
-            localStorage.setItem('crescentUser', JSON.stringify(userData));
-            return { success: true };
-          }
-        }
-      }
-
-      // Check supervisors
-      const supervisors = await dbGet('supervisors');
-      if (supervisors) {
-        for (const [key, supervisor] of Object.entries(supervisors as Record<string, any>)) {
-          if (supervisor.username === username && supervisor.password === password) {
-            const userData: User = {
-              id: key,
-              username: supervisor.username,
-              name: supervisor.name,
-              role: 'supervisor',
-              assignedClassIds: supervisor.assignedClassIds || []
             };
             setUser(userData);
             localStorage.setItem('crescentUser', JSON.stringify(userData));
