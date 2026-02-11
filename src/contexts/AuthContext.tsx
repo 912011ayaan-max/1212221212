@@ -10,14 +10,12 @@ export interface User {
   role: UserRole;
   classId?: string;
   className?: string;
-  passwordChanged?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
-  updateUser: (data: Partial<User>) => void;
   isLoading: boolean;
 }
 
@@ -78,20 +76,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (students) {
         for (const [key, student] of Object.entries(students as Record<string, any>)) {
           if (student.username === username && student.password === password) {
-            // Check if user is trying to login with an old password if they have already changed it
-            // However, since the password in DB is updated during change, 
-            // the check student.password === password already handles this.
-            // If the user changed their password to 'new123', the DB 'password' field is 'new123'.
-            // If they try to login with 'old123', it won't match student.password ('new123').
-            
             const userData: User = {
               id: key,
               username: student.username,
               name: student.name,
               role: 'student',
               classId: student.classId,
-              className: student.className,
-              passwordChanged: student.passwordChanged || false
+              className: student.className
             };
             setUser(userData);
             localStorage.setItem('crescentUser', JSON.stringify(userData));
@@ -112,16 +103,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('crescentUser');
   };
 
-  const updateUser = (data: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...data };
-      setUser(updatedUser);
-      localStorage.setItem('crescentUser', JSON.stringify(updatedUser));
-    }
-  };
-
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateUser, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
