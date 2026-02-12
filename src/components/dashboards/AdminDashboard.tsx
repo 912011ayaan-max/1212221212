@@ -292,6 +292,25 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
   const [promoteAction, setPromoteAction] = useState<'graduate' | 'demote' | null>(null);
   const [targetClassId, setTargetClassId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{ id: string, name: string, role: 'teacher' | 'student' } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+
+  const handleUpdatePassword = async () => {
+    if (!selectedUser || !newPassword.trim()) return;
+    setIsSubmitting(true);
+    try {
+      const path = selectedUser.role === 'teacher' ? `teachers/${selectedUser.id}` : `students/${selectedUser.id}`;
+      await dbUpdate(path, { password: newPassword });
+      toast({ title: "Success", description: `Password updated for ${selectedUser.name}` });
+      setShowPanel(null);
+      setSelectedUser(null);
+      setNewPassword('');
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleGraduateStudent = async (student: Student) => {
     setSelectedStudent(student);
@@ -868,7 +887,23 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
                     <div className="w-12 h-12 rounded-2xl bg-gradient-primary flex items-center justify-center"><span className="font-display font-bold text-primary-foreground">{t.name.charAt(0)}</span></div>
                     <div><h4 className="font-semibold">{t.name}</h4><p className="text-sm text-muted-foreground">{t.subject}</p><p className="text-xs text-muted-foreground">@{t.username}</p></div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => dbRemove(`teachers/${t.id}`)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => {
+                        setSelectedUser({ id: t.id, name: t.name, role: 'teacher' });
+                        setShowPanel('change-password');
+                      }}>
+                        <Lock className="w-4 h-4 mr-2" /> Change Password
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => dbRemove(`teachers/${t.id}`)} className="text-destructive">
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete Teacher
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardContent>
             </Card>
@@ -894,6 +929,72 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
             </div>
             <Button className="w-full bg-gradient-primary" onClick={handleAddTeacher}><Save className="w-4 h-4 mr-2" />Save Teacher</Button>
           </div>
+        </SlidePanel>
+
+        <SlidePanel 
+          isOpen={showPanel === 'change-password'} 
+          onClose={() => { setShowPanel(null); setSelectedUser(null); setNewPassword(''); }} 
+          title="Change Password"
+        >
+          {selectedUser && (
+            <div className="space-y-6">
+              <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
+                <p className="text-sm text-muted-foreground">{selectedUser.role === 'teacher' ? 'Teacher' : 'Student'}</p>
+                <p className="font-bold text-lg">{selectedUser.name}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">New Password</label>
+                <Input 
+                  type="password" 
+                  placeholder="Enter new password" 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)} 
+                />
+              </div>
+              <div className="pt-4">
+                <Button 
+                  className="w-full bg-gradient-primary" 
+                  onClick={handleUpdatePassword}
+                  disabled={!newPassword.trim() || isSubmitting}
+                >
+                  {isSubmitting ? 'Updating...' : 'Update Password'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </SlidePanel>
+
+        <SlidePanel 
+          isOpen={showPanel === 'change-password'} 
+          onClose={() => { setShowPanel(null); setSelectedUser(null); setNewPassword(''); }} 
+          title="Change Password"
+        >
+          {selectedUser && (
+            <div className="space-y-6">
+              <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
+                <p className="text-sm text-muted-foreground">{selectedUser.role === 'teacher' ? 'Teacher' : 'Student'}</p>
+                <p className="font-bold text-lg">{selectedUser.name}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">New Password</label>
+                <Input 
+                  type="password" 
+                  placeholder="Enter new password" 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)} 
+                />
+              </div>
+              <div className="pt-4">
+                <Button 
+                  className="w-full bg-gradient-primary" 
+                  onClick={handleUpdatePassword}
+                  disabled={!newPassword.trim() || isSubmitting}
+                >
+                  {isSubmitting ? 'Updating...' : 'Update Password'}
+                </Button>
+              </div>
+            </div>
+          )}
         </SlidePanel>
       </div>
     );
@@ -1088,6 +1189,12 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
                       <DropdownMenuItem onClick={() => handleDemoteStudent(s)}>
                         <TrendingUp className="w-4 h-4 mr-2 text-orange-500 rotate-180" /> Demote
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setSelectedUser({ id: s.id, name: s.name, role: 'student' });
+                        setShowPanel('change-password');
+                      }}>
+                        <Lock className="w-4 h-4 mr-2" /> Change Password
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => handleExitStudent(s)}>
                         <Trash2 className="w-4 h-4 mr-2 text-destructive" /> Exit School
@@ -1163,6 +1270,39 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
                   disabled={!targetClassId || isSubmitting}
                 >
                   {isSubmitting ? 'Processing...' : `Confirm ${promoteAction === 'graduate' ? 'Graduation' : 'Demotion'}`}
+                </Button>
+              </div>
+            </div>
+          )}
+        </SlidePanel>
+
+        <SlidePanel 
+          isOpen={showPanel === 'change-password'} 
+          onClose={() => { setShowPanel(null); setSelectedUser(null); setNewPassword(''); }} 
+          title="Change Password"
+        >
+          {selectedUser && (
+            <div className="space-y-6">
+              <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
+                <p className="text-sm text-muted-foreground">{selectedUser.role === 'teacher' ? 'Teacher' : 'Student'}</p>
+                <p className="font-bold text-lg">{selectedUser.name}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">New Password</label>
+                <Input 
+                  type="password" 
+                  placeholder="Enter new password" 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)} 
+                />
+              </div>
+              <div className="pt-4">
+                <Button 
+                  className="w-full bg-gradient-primary" 
+                  onClick={handleUpdatePassword}
+                  disabled={!newPassword.trim() || isSubmitting}
+                >
+                  {isSubmitting ? 'Updating...' : 'Update Password'}
                 </Button>
               </div>
             </div>
