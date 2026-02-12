@@ -13,7 +13,7 @@ import {
   Users, GraduationCap, BookOpen, Plus, Trash2, Check, 
   Megaphone, Send, TrendingUp, Award, Search,
   UserPlus, School, Bell, Calendar, Clock, ChevronRight, Save, MoreVertical, Cog, Lock,
-  Download, Upload
+  Download, Upload, Shield
 } from 'lucide-react';
 import { 
   DropdownMenu,
@@ -170,8 +170,13 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
       toast({ title: "Error", description: "No data to export", variant: "destructive" });
       return;
     }
-    const headers = Object.keys(data[0]).filter(k => k !== 'id').join(',');
-    const rows = data.map(obj => 
+
+    // Deduplicate data before exporting to prevent double entries in the CSV
+    // We use username as unique key for teachers/students, and name for classes
+    const uniqueData = Array.from(new Map(data.map(item => [item.username || item.name || item.id, item])).values());
+
+    const headers = Object.keys(uniqueData[0]).filter(k => k !== 'id').join(',');
+    const rows = uniqueData.map(obj => 
       Object.entries(obj)
         .filter(([k]) => k !== 'id')
         .map(([, v]) => `"${String(v).replace(/"/g, '""')}"`)
@@ -211,13 +216,16 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
 
       let count = 0;
       let skipped = 0;
+      const processedUsernames = new Set(teachers.map(t => t.username));
+
       for (const t of importedTeachers) {
         if (t.name && t.username && t.password && t.subject) {
-          if (teachers.some(existing => existing.username === t.username)) {
+          if (processedUsernames.has(t.username)) {
             skipped++;
             continue;
           }
           await dbPush('teachers', { ...t, createdAt: new Date().toISOString() });
+          processedUsernames.add(t.username);
           count++;
         }
       }
@@ -252,9 +260,11 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
 
       let count = 0;
       let skipped = 0;
+      const processedUsernames = new Set(students.map(s => s.username));
+
       for (const s of importedStudents) {
         if (s.name && s.username && s.password && (s.classId || s.className)) {
-          if (students.some(existing => existing.username === s.username)) {
+          if (processedUsernames.has(s.username)) {
             skipped++;
             continue;
           }
@@ -265,6 +275,7 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
             className: cls?.name || s.className || 'Unassigned',
             createdAt: new Date().toISOString() 
           });
+          processedUsernames.add(s.username);
           count++;
         }
       }
@@ -275,6 +286,110 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
       e.target.value = '';
     };
     reader.readAsText(file);
+  };
+
+  const handleGraduateStudent = async (student: Student) => {
+    const currentClass = classes.find(c => c.id === student.classId);
+    if (!currentClass) {
+      toast({ title: "Error", description: "Current class not found", variant: "destructive" });
+      return;
+    }
+    
+    const currentGrade = parseInt(currentClass.grade);
+    if (isNaN(currentGrade)) {
+      toast({ title: "Error", description: "Invalid class grade", variant: "destructive" });
+      return;
+    }
+
+    const nextGrade = (currentGrade + 1).toString();
+    const nextClass = classes.find(c => c.grade === nextGrade);
+
+    if (!nextClass) {
+      toast({ 
+        title: "Graduation Notice", 
+        description: `No class found for grade ${nextGrade}. Student has graduated from the school!`,
+      });
+      // Optionally remove student or mark as alumni. For now, let's just keep them in current class or remove.
+      // The user said "advances a grade like they gradute", so if no next grade, maybe they leave.
+      await dbRemove(`students/${student.id}`);
+      return;
+    }
+
+    await dbUpdate(`students/${student.id}`, {
+      classId: nextClass.id,
+      className: nextClass.name
+    });
+    
+    toast({ title: "Success", description: `${student.name} graduated to ${nextClass.name} (Grade ${nextGrade})` });
+  };
+
+  const handleDemoteStudent = async (student: Student) => {
+    const currentClass = classes.find(c => c.id === student.classId);
+    if (!currentClass) return;
+    
+    const currentGrade = parseInt(currentClass.grade);
+    if (isNaN(currentGrade) || currentGrade <= 1) {
+      toast({ title: "Error", description: "Cannot demote further", variant: "destructive" });
+      return;
+    }
+
+    const prevGrade = (currentGrade - 1).toString();
+    const prevClass = classes.find(c => c.grade === prevGrade);
+
+    if (!prevClass) {
+      toast({ title: "Error", description: `No class found for grade ${prevGrade}`, variant: "destructive" });
+      return;
+    }
+
+    await dbUpdate(`students/${student.id}`, {
+      classId: prevClass.id,
+      className: prevClass.name
+    });
+    
+    toast({ title: "Success", description: `${student.name} demoted to ${prevClass.name} (Grade ${prevGrade})` });
+  };
+
+  const handleExitStudent = async (student: Student) => {
+    if (window.confirm(`Are you sure you want to remove ${student.name} from the school records?`)) {
+      await dbRemove(`students/${student.id}`);
+      toast({ title: "Success", description: `${student.name} has been removed from records` });
+    }
+  };
+
+  const handleCleanupDuplicates = async () => {
+    let cleanedTeachers = 0;
+    let cleanedStudents = 0;
+
+    // Cleanup Teachers
+    const teacherUsernames = new Set();
+    for (const t of teachers) {
+      if (teacherUsernames.has(t.username)) {
+        await dbRemove(`teachers/${t.id}`);
+        cleanedTeachers++;
+      } else {
+        teacherUsernames.add(t.username);
+      }
+    }
+
+    // Cleanup Students
+    const studentUsernames = new Set();
+    for (const s of students) {
+      if (studentUsernames.has(s.username)) {
+        await dbRemove(`students/${s.id}`);
+        cleanedStudents++;
+      } else {
+        studentUsernames.add(s.username);
+      }
+    }
+
+    if (cleanedTeachers > 0 || cleanedStudents > 0) {
+      toast({ 
+        title: "Cleanup Complete", 
+        description: `Removed ${cleanedTeachers} duplicate teachers and ${cleanedStudents} duplicate students.` 
+      });
+    } else {
+      toast({ title: "Clean", description: "No duplicate entries found." });
+    }
   };
 
   const handleSendReply = async () => {
@@ -520,13 +635,27 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
     );
   }
 
+  // Get unique counts for dashboard statistics to avoid double-counting
+  const uniqueTeachersCount = new Set(teachers.map(t => t.username)).size;
+  const uniqueStudentsCount = new Set(students.map(s => s.username)).size;
+  const uniqueClassesCount = new Set(classes.map(c => c.name)).size;
+
   if (currentPage === 'dashboard') {
     return (
       <div ref={ref} className="space-y-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-display font-bold">Admin Overview</h2>
+            <p className="text-muted-foreground">Manage your school's data and operations</p>
+          </div>
+          <Button variant="outline" onClick={handleCleanupDuplicates} className="border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700">
+            <Shield className="w-4 h-4 mr-2" /> Cleanup Duplicates
+          </Button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard title="Total Teachers" value={teachers.length} icon={Users} gradient="bg-gradient-primary" delay={0} />
-          <StatCard title="Total Classes" value={classes.length} icon={BookOpen} gradient="bg-gradient-gold" delay={0.1} />
-          <StatCard title="Total Students" value={students.length} icon={GraduationCap} gradient="bg-gradient-success" delay={0.2} />
+          <StatCard title="Total Teachers" value={uniqueTeachersCount} icon={Users} gradient="bg-gradient-primary" delay={0} />
+          <StatCard title="Total Classes" value={uniqueClassesCount} icon={BookOpen} gradient="bg-gradient-gold" delay={0.1} />
+          <StatCard title="Total Students" value={uniqueStudentsCount} icon={GraduationCap} gradient="bg-gradient-success" delay={0.2} />
           <StatCard title="Announcements" value={announcements.length} icon={Megaphone} gradient="bg-gradient-warm" delay={0.3} />
         </div>
 
@@ -950,7 +1079,23 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
                     <div className="w-12 h-12 rounded-2xl bg-gradient-success flex items-center justify-center"><span className="font-display font-bold text-primary-foreground">{s.name.charAt(0)}</span></div>
                     <div><h4 className="font-semibold">{s.name}</h4><p className="text-sm text-muted-foreground">{s.className}</p><p className="text-xs text-muted-foreground">@{s.username}</p></div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => dbRemove(`students/${s.id}`)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleGraduateStudent(s)}>
+                        <TrendingUp className="w-4 h-4 mr-2 text-green-500" /> Graduate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDemoteStudent(s)}>
+                        <TrendingUp className="w-4 h-4 mr-2 text-orange-500 rotate-180" /> Demote
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleExitStudent(s)}>
+                        <Trash2 className="w-4 h-4 mr-2 text-destructive" /> Exit School
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardContent>
             </Card>
