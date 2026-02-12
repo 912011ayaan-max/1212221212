@@ -288,65 +288,63 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
     reader.readAsText(file);
   };
 
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [promoteAction, setPromoteAction] = useState<'graduate' | 'demote' | null>(null);
+  const [targetClassId, setTargetClassId] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleGraduateStudent = async (student: Student) => {
+    setSelectedStudent(student);
+    setPromoteAction('graduate');
+    setShowPanel('promote');
+    // Default to the next grade class if possible
     const currentClass = classes.find(c => c.id === student.classId);
-    if (!currentClass) {
-      toast({ title: "Error", description: "Current class not found", variant: "destructive" });
-      return;
+    if (currentClass) {
+      const nextGrade = (parseInt(currentClass.grade) + 1).toString();
+      const nextClass = classes.find(c => c.grade === nextGrade);
+      if (nextClass) setTargetClassId(nextClass.id);
+      else setTargetClassId('graduate_out');
     }
-    
-    const currentGrade = parseInt(currentClass.grade);
-    if (isNaN(currentGrade)) {
-      toast({ title: "Error", description: "Invalid class grade", variant: "destructive" });
-      return;
-    }
-
-    const nextGrade = (currentGrade + 1).toString();
-    const nextClass = classes.find(c => c.grade === nextGrade);
-
-    if (!nextClass) {
-      toast({ 
-        title: "Graduation Notice", 
-        description: `No class found for grade ${nextGrade}. Student has graduated from the school!`,
-      });
-      // Optionally remove student or mark as alumni. For now, let's just keep them in current class or remove.
-      // The user said "advances a grade like they gradute", so if no next grade, maybe they leave.
-      await dbRemove(`students/${student.id}`);
-      return;
-    }
-
-    await dbUpdate(`students/${student.id}`, {
-      classId: nextClass.id,
-      className: nextClass.name
-    });
-    
-    toast({ title: "Success", description: `${student.name} graduated to ${nextClass.name} (Grade ${nextGrade})` });
   };
 
   const handleDemoteStudent = async (student: Student) => {
+    setSelectedStudent(student);
+    setPromoteAction('demote');
+    setShowPanel('promote');
+    // Default to the previous grade class if possible
     const currentClass = classes.find(c => c.id === student.classId);
-    if (!currentClass) return;
-    
-    const currentGrade = parseInt(currentClass.grade);
-    if (isNaN(currentGrade) || currentGrade <= 1) {
-      toast({ title: "Error", description: "Cannot demote further", variant: "destructive" });
-      return;
+    if (currentClass) {
+      const prevGrade = (parseInt(currentClass.grade) - 1).toString();
+      const prevClass = classes.find(c => c.grade === prevGrade);
+      if (prevClass) setTargetClassId(prevClass.id);
     }
+  };
 
-    const prevGrade = (currentGrade - 1).toString();
-    const prevClass = classes.find(c => c.grade === prevGrade);
-
-    if (!prevClass) {
-      toast({ title: "Error", description: `No class found for grade ${prevGrade}`, variant: "destructive" });
-      return;
+  const handleConfirmPromotion = async () => {
+    if (!selectedStudent || !targetClassId) return;
+    setIsSubmitting(true);
+    try {
+      if (targetClassId === 'graduate_out') {
+        await dbRemove(`students/${selectedStudent.id}`);
+        toast({ title: "Success", description: `${selectedStudent.name} has graduated from the school!` });
+      } else {
+        const targetClass = classes.find(c => c.id === targetClassId);
+        if (!targetClass) throw new Error("Target class not found");
+        
+        await dbUpdate(`students/${selectedStudent.id}`, {
+          classId: targetClass.id,
+          className: targetClass.name
+        });
+        toast({ title: "Success", description: `${selectedStudent.name} ${promoteAction === 'graduate' ? 'graduated' : 'demoted'} to ${targetClass.name}` });
+      }
+      setShowPanel(null);
+      setSelectedStudent(null);
+      setTargetClassId('');
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    await dbUpdate(`students/${student.id}`, {
-      classId: prevClass.id,
-      className: prevClass.name
-    });
-    
-    toast({ title: "Success", description: `${student.name} demoted to ${prevClass.name} (Grade ${prevGrade})` });
   };
 
   const handleExitStudent = async (student: Student) => {
@@ -1124,6 +1122,51 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
             </div>
             <Button className="w-full bg-gradient-primary" onClick={handleAddStudent}><Save className="w-4 h-4 mr-2" />Enroll Student</Button>
           </div>
+        </SlidePanel>
+
+        <SlidePanel 
+          isOpen={showPanel === 'promote'} 
+          onClose={() => { setShowPanel(null); setSelectedStudent(null); }} 
+          title={promoteAction === 'graduate' ? 'Graduate Student' : 'Demote Student'}
+        >
+          {selectedStudent && (
+            <div className="space-y-6">
+              <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
+                <p className="text-sm text-muted-foreground">Student</p>
+                <p className="font-bold text-lg">{selectedStudent.name}</p>
+                <p className="text-xs text-muted-foreground">Current Class: {selectedStudent.className}</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Select Target Class</label>
+                <select 
+                  className="w-full h-10 px-3 rounded-lg border border-input bg-background" 
+                  value={targetClassId} 
+                  onChange={(e) => setTargetClassId(e.target.value)}
+                >
+                  <option value="">Select target class</option>
+                  {promoteAction === 'graduate' && <option value="graduate_out">Graduate out of School (Complete)</option>}
+                  {classes
+                    .filter(c => c.id !== selectedStudent.classId)
+                    .sort((a, b) => parseInt(a.grade) - parseInt(b.grade))
+                    .map(c => (
+                      <option key={c.id} value={c.id}>Grade {c.grade} - {c.name}</option>
+                    ))
+                  }
+                </select>
+              </div>
+
+              <div className="pt-4">
+                <Button 
+                  className="w-full bg-gradient-primary" 
+                  onClick={handleConfirmPromotion}
+                  disabled={!targetClassId || isSubmitting}
+                >
+                  {isSubmitting ? 'Processing...' : `Confirm ${promoteAction === 'graduate' ? 'Graduation' : 'Demotion'}`}
+                </Button>
+              </div>
+            </div>
+          )}
         </SlidePanel>
       </div>
     );
