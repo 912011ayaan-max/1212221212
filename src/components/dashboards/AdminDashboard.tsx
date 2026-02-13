@@ -207,19 +207,26 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
       const lines = text.split('\n');
       if (lines.length < 2) return;
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
       const importedTeachers = lines.slice(1).filter(line => line.trim()).map(line => {
         const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-        const teacher: any = {};
+        const rawTeacher: any = {};
         headers.forEach((header, i) => {
-          teacher[header] = values[i];
+          rawTeacher[header] = values[i];
         });
-        return teacher;
+        
+        // Normalize fields
+        return {
+          name: rawTeacher.name || rawTeacher.fullname || rawTeacher['full name'] || '',
+          username: rawTeacher.username || rawTeacher.user || '',
+          password: rawTeacher.password || rawTeacher.pass || '123456',
+          subject: rawTeacher.subject || rawTeacher.dept || 'General'
+        };
       });
 
       // Filter out duplicates within the Excel/CSV file itself
       const uniqueImportedTeachers = importedTeachers.filter((t, index, self) =>
-        index === self.findIndex((temp) => temp.username === t.username)
+        t.username && index === self.findIndex((temp) => temp.username === t.username)
       );
 
       let count = 0;
@@ -256,19 +263,27 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
       const lines = text.split('\n');
       if (lines.length < 2) return;
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
       const importedStudents = lines.slice(1).filter(line => line.trim()).map(line => {
         const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-        const student: any = {};
+        const rawStudent: any = {};
         headers.forEach((header, i) => {
-          student[header] = values[i];
+          rawStudent[header] = values[i];
         });
-        return student;
+
+        // Normalize fields
+        return {
+          name: rawStudent.name || rawStudent.fullname || rawStudent['full name'] || '',
+          username: rawStudent.username || rawStudent.user || '',
+          password: rawStudent.password || rawStudent.pass || '123456',
+          classId: rawStudent.classid || rawStudent.class_id || '',
+          className: rawStudent.classname || rawStudent.class_name || rawStudent.class || ''
+        };
       });
 
       // Filter out duplicates within the Excel/CSV file itself
       const uniqueImportedStudents = importedStudents.filter((s, index, self) =>
-        index === self.findIndex((temp) => temp.username === s.username)
+        s.username && index === self.findIndex((temp) => temp.username === s.username)
       );
 
       let count = 0;
