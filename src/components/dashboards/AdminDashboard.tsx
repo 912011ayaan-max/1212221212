@@ -949,6 +949,7 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
             <Button className="w-full bg-gradient-primary" onClick={handleAddAnnouncement}><Send className="w-4 h-4 mr-2" />Post</Button>
           </div>
         </SlidePanel>
+        {renderEditPanel()}
       </div>
     );
   }
@@ -1062,6 +1063,7 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
             </div>
           )}
         </SlidePanel>
+        {renderEditPanel()}
       </div>
     );
   }
@@ -1380,92 +1382,88 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
             </div>
           )}
         </SlidePanel>
+        {renderEditPanel()}
       </div>
     );
   }
 
-  // Global edit panel that should be available on all pages
-  if (showPanel === 'edit-user') {
-    return (
-      <>
-        <div ref={ref} />
-        <SlidePanel 
-          isOpen={showPanel === 'edit-user'} 
-          onClose={() => { setShowPanel(null); setEditingUser(null); }} 
-          title={`Edit ${editingUser?.role === 'teacher' ? 'Teacher' : 'Student'} Details`}
-        >
-          {editingUser && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Full Name</label>
-                <Input 
-                  placeholder="Enter full name" 
-                  value={editingUser.name} 
-                  onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })} 
-                />
-              </div>
-              
-              {editingUser.role === 'teacher' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Subject</label>
-                  <Input 
-                    placeholder="Teaching subject" 
-                    value={editingUser.subject || ''} 
-                    onChange={(e) => setEditingUser({ ...editingUser, subject: e.target.value })} 
-                  />
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Username</label>
-                <Input 
-                  placeholder="Login username" 
-                  value={editingUser.username} 
-                  onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })} 
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Password</label>
-                <Input 
-                  type="text" 
-                  placeholder="Set password" 
-                  value={editingUser.password} 
-                  onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })} 
-                />
-                <p className="text-xs text-muted-foreground italic">Password is visible for admin editing.</p>
-              </div>
-
-              {editingUser.role === 'student' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Class</label>
-                  <select 
-                    className="w-full h-10 px-3 rounded-lg border border-input bg-background" 
-                    value={editingUser.classId || ''} 
-                    onChange={(e) => setEditingUser({ ...editingUser, classId: e.target.value })}
-                  >
-                    <option value="">Select a class</option>
-                    {classes.map(c => <option key={c.id} value={c.id}>{c.name} (Grade {c.grade})</option>)}
-                  </select>
-                </div>
-              )}
-
-              <div className="pt-4">
-                <Button 
-                  className="w-full bg-gradient-primary h-11 rounded-xl shadow-lg" 
-                  onClick={handleUpdateUser}
-                  disabled={isSubmitting}
-                >
-                  <Save className="w-4 h-4 mr-2" /> 
-                  {isSubmitting ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </div>
+  // Add edit panel to all sections that need it
+  const renderEditPanel = () => (
+    <SlidePanel 
+      isOpen={showPanel === 'edit-user'} 
+      onClose={() => { setShowPanel(null); setEditingUser(null); }} 
+      title={`Edit ${editingUser?.role === 'teacher' ? 'Teacher' : 'Student'} Details`}
+    >
+      {editingUser && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Full Name</label>
+            <Input 
+              placeholder="Enter full name" 
+              value={editingUser.name} 
+              onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })} 
+            />
+          </div>
+          
+          {editingUser.role === 'teacher' && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Subject</label>
+              <Input 
+                placeholder="Teaching subject" 
+                value={editingUser.subject || ''} 
+                onChange={(e) => setEditingUser({ ...editingUser, subject: e.target.value })} 
+              />
             </div>
           )}
-        </SlidePanel>
-      </>
-    );
-  }
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Username</label>
+            <Input 
+              placeholder="Login username" 
+              value={editingUser.username} 
+              onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })} 
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Password</label>
+            <Input 
+              type="text" 
+              placeholder="Set password" 
+              value={editingUser.password} 
+              onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })} 
+            />
+            <p className="text-xs text-muted-foreground italic">Password is visible for admin editing.</p>
+          </div>
+
+          {editingUser.role === 'student' && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Class</label>
+              <select 
+                className="w-full h-10 px-3 rounded-lg border border-input bg-background" 
+                value={editingUser.classId || ''} 
+                onChange={(e) => setEditingUser({ ...editingUser, classId: e.target.value })}
+              >
+                <option value="">Select a class</option>
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name} (Grade {c.grade})</option>)}
+              </select>
+            </div>
+          )}
+
+          <div className="pt-4">
+            <Button 
+              className="w-full bg-gradient-primary h-11 rounded-xl shadow-lg" 
+              onClick={handleUpdateUser}
+              disabled={isSubmitting}
+            >
+              <Save className="w-4 h-4 mr-2" /> 
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </SlidePanel>
+  );
 
   return <div ref={ref} className="text-center py-16 text-muted-foreground">Select a section from the menu</div>;
 });
