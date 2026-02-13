@@ -214,11 +214,16 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
         return teacher;
       });
 
+      // Filter out duplicates within the Excel/CSV file itself
+      const uniqueImportedTeachers = importedTeachers.filter((t, index, self) =>
+        index === self.findIndex((temp) => temp.username === t.username)
+      );
+
       let count = 0;
       let skipped = 0;
       const processedUsernames = new Set(teachers.map(t => t.username));
 
-      for (const t of importedTeachers) {
+      for (const t of uniqueImportedTeachers) {
         if (t.name && t.username && t.password && t.subject) {
           if (processedUsernames.has(t.username)) {
             skipped++;
@@ -258,11 +263,16 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
         return student;
       });
 
+      // Filter out duplicates within the Excel/CSV file itself
+      const uniqueImportedStudents = importedStudents.filter((s, index, self) =>
+        index === self.findIndex((temp) => temp.username === s.username)
+      );
+
       let count = 0;
       let skipped = 0;
       const processedUsernames = new Set(students.map(s => s.username));
 
-      for (const s of importedStudents) {
+      for (const s of uniqueImportedStudents) {
         if (s.name && s.username && s.password && (s.classId || s.className)) {
           if (processedUsernames.has(s.username)) {
             skipped++;
@@ -300,7 +310,11 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
     setIsSubmitting(true);
     try {
       const path = selectedUser.role === 'teacher' ? `teachers/${selectedUser.id}` : `students/${selectedUser.id}`;
-      await dbUpdate(path, { password: newPassword });
+      await dbUpdate(path, { 
+        password: newPassword,
+        passwordChanged: false, // Reset so the user can change it again
+        oldPassword: "" // Clear old password history
+      });
       toast({ title: "Success", description: `Password updated for ${selectedUser.name}` });
       setShowPanel(null);
       setSelectedUser(null);
@@ -929,39 +943,6 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
             </div>
             <Button className="w-full bg-gradient-primary" onClick={handleAddTeacher}><Save className="w-4 h-4 mr-2" />Save Teacher</Button>
           </div>
-        </SlidePanel>
-
-        <SlidePanel 
-          isOpen={showPanel === 'change-password'} 
-          onClose={() => { setShowPanel(null); setSelectedUser(null); setNewPassword(''); }} 
-          title="Change Password"
-        >
-          {selectedUser && (
-            <div className="space-y-6">
-              <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
-                <p className="text-sm text-muted-foreground">{selectedUser.role === 'teacher' ? 'Teacher' : 'Student'}</p>
-                <p className="font-bold text-lg">{selectedUser.name}</p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">New Password</label>
-                <Input 
-                  type="password" 
-                  placeholder="Enter new password" 
-                  value={newPassword} 
-                  onChange={(e) => setNewPassword(e.target.value)} 
-                />
-              </div>
-              <div className="pt-4">
-                <Button 
-                  className="w-full bg-gradient-primary" 
-                  onClick={handleUpdatePassword}
-                  disabled={!newPassword.trim() || isSubmitting}
-                >
-                  {isSubmitting ? 'Updating...' : 'Update Password'}
-                </Button>
-              </div>
-            </div>
-          )}
         </SlidePanel>
 
         <SlidePanel 

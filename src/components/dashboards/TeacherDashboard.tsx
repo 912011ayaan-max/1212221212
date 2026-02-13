@@ -190,9 +190,14 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
         return student;
       });
 
+      // Filter out duplicates within the Excel/CSV file itself
+      const uniqueImportedStudents = importedStudents.filter((s, index, self) =>
+        index === self.findIndex((temp) => temp.username === s.username)
+      );
+
       let count = 0;
       let skipped = 0;
-      for (const s of importedStudents) {
+      for (const s of uniqueImportedStudents) {
         if (s.name && s.username && s.password) {
           if (students.some(existing => existing.username === s.username)) {
             skipped++;
