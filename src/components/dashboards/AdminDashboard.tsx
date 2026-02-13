@@ -11,18 +11,13 @@ import AnalyticsPanel from './AnalyticsPanel';
 import SettingsPanel from './SettingsPanel';
 import { 
   Users, GraduationCap, BookOpen, Plus, Trash2, Check, 
-  Megaphone, Send, TrendingUp, Award, Search,
+  Megaphone, Send, TrendingUp, Award, Search, Sparkles,
   UserPlus, School, Bell, Calendar, Clock, ChevronRight, Save, MoreVertical, Cog, Lock,
   Download, Upload, Shield
 } from 'lucide-react';
-import { 
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 
 interface Teacher { id: string; name: string; username: string; password: string; subject: string; }
 interface Class { id: string; name: string; grade: string; teacherId: string; teacherName: string; secondaryTeachers?: { id: string; name: string }[]; }
@@ -46,6 +41,7 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
   const [newClass, setNewClass] = useState({ name: '', grade: '', teacherId: '' });
   const [newStudent, setNewStudent] = useState({ name: '', username: '', password: '', classId: '' });
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', priority: 'normal' as const });
+  const [popupConfig, setPopupConfig] = useState({ enabled: false, bannerText: '' });
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [manageClass, setManageClass] = useState({ name: '', grade: '', teacherId: '', secondaryTeacherIds: [] as string[] });
   const [secondarySelections, setSecondarySelections] = useState<Record<string, boolean>>({});
@@ -57,7 +53,8 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
       dbListen('classes', (data) => setClasses(data ? Object.entries(data).map(([id, c]: [string, any]) => ({ id, ...c })) : [])),
       dbListen('students', (data) => setStudents(data ? Object.entries(data).map(([id, s]: [string, any]) => ({ id, ...s })) : [])),
       dbListen('announcements', (data) => setAnnouncements(data ? Object.entries(data).map(([id, a]: [string, any]) => ({ id, ...a })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [])),
-      dbListen('complaints', (data) => setComplaints(data ? Object.entries(data).map(([id, c]: [string, any]) => ({ id, ...c })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : []))
+      dbListen('complaints', (data) => setComplaints(data ? Object.entries(data).map(([id, c]: [string, any]) => ({ id, ...c })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [])),
+      dbListen('settings/popup', (data) => setPopupConfig(data || { enabled: false, bannerText: '' }))
     ];
     return () => unsubs.forEach(u => u());
   }, []);
@@ -163,6 +160,12 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
     await dbPush('announcements', { ...newAnnouncement, author: 'Principal', createdAt: new Date().toISOString() });
     setNewAnnouncement({ title: '', content: '', priority: 'normal' });
     toast({ title: "Success", description: "Announcement posted" });
+  };
+
+  const handleUpdatePopupConfig = async () => {
+    await dbUpdate('settings/popup', popupConfig);
+    setShowPanel(null);
+    toast({ title: "Success", description: "Social Media Popup updated" });
   };
 
   const handleExportData = (data: any[], filename: string) => {
@@ -696,6 +699,7 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
             <CardContent className="space-y-3">
               {[
                 { icon: Megaphone, label: 'Post Announcement', panel: 'announcement' },
+                { icon: Sparkles, label: 'Social Popup', panel: 'popup' },
                 { icon: UserPlus, label: 'Add Teacher', panel: 'teacher' },
                 { icon: School, label: 'Create Class', panel: 'class' },
                 { icon: GraduationCap, label: 'Enroll Student', panel: 'student' },
@@ -819,6 +823,40 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
               </select>
             </div>
             <Button className="w-full bg-gradient-primary" onClick={handleAddStudent}><Save className="w-4 h-4 mr-2" />Enroll Student</Button>
+          </div>
+        </SlidePanel>
+
+        <SlidePanel isOpen={showPanel === 'popup'} onClose={() => setShowPanel(null)} title="Social Media Popup Settings">
+          <div className="space-y-6">
+            <div className="p-4 rounded-2xl bg-muted/50 border border-border/50 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-semibold">Enable Popup</label>
+                  <p className="text-xs text-muted-foreground">Show social links to all visitors</p>
+                </div>
+                <Switch 
+                  checked={popupConfig.enabled} 
+                  onCheckedChange={(val) => setPopupConfig({ ...popupConfig, enabled: val })} 
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Banner Text</label>
+              <Textarea 
+                placeholder="Enter a cool banner text (e.g., Join our community!)" 
+                rows={3} 
+                value={popupConfig.bannerText} 
+                onChange={(e) => setPopupConfig({ ...popupConfig, bannerText: e.target.value })} 
+              />
+              <p className="text-xs text-muted-foreground italic">This text will appear at the top of the popup.</p>
+            </div>
+
+            <div className="pt-4">
+              <Button className="w-full bg-gradient-primary h-11 rounded-xl shadow-lg" onClick={handleUpdatePopupConfig}>
+                <Save className="w-4 h-4 mr-2" /> Save Settings
+              </Button>
+            </div>
           </div>
         </SlidePanel>
       </div>
