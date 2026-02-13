@@ -207,26 +207,19 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
       const lines = text.split('\n');
       if (lines.length < 2) return;
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
       const importedTeachers = lines.slice(1).filter(line => line.trim()).map(line => {
         const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-        const rawTeacher: any = {};
+        const teacher: any = {};
         headers.forEach((header, i) => {
-          rawTeacher[header] = values[i];
+          teacher[header] = values[i];
         });
-        
-        // Normalize fields
-        return {
-          name: rawTeacher.name || rawTeacher.fullname || rawTeacher['full name'] || '',
-          username: rawTeacher.username || rawTeacher.user || '',
-          password: rawTeacher.password || rawTeacher.pass || '123456',
-          subject: rawTeacher.subject || rawTeacher.dept || 'General'
-        };
+        return teacher;
       });
 
       // Filter out duplicates within the Excel/CSV file itself
       const uniqueImportedTeachers = importedTeachers.filter((t, index, self) =>
-        t.username && index === self.findIndex((temp) => temp.username === t.username)
+        index === self.findIndex((temp) => temp.username === t.username)
       );
 
       let count = 0;
@@ -263,27 +256,19 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
       const lines = text.split('\n');
       if (lines.length < 2) return;
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
       const importedStudents = lines.slice(1).filter(line => line.trim()).map(line => {
         const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-        const rawStudent: any = {};
+        const student: any = {};
         headers.forEach((header, i) => {
-          rawStudent[header] = values[i];
+          student[header] = values[i];
         });
-
-        // Normalize fields
-        return {
-          name: rawStudent.name || rawStudent.fullname || rawStudent['full name'] || '',
-          username: rawStudent.username || rawStudent.user || '',
-          password: rawStudent.password || rawStudent.pass || '123456',
-          classId: rawStudent.classid || rawStudent.class_id || '',
-          className: rawStudent.classname || rawStudent.class_name || rawStudent.class || ''
-        };
+        return student;
       });
 
       // Filter out duplicates within the Excel/CSV file itself
       const uniqueImportedStudents = importedStudents.filter((s, index, self) =>
-        s.username && index === self.findIndex((temp) => temp.username === s.username)
+        index === self.findIndex((temp) => temp.username === s.username)
       );
 
       let count = 0;
@@ -881,81 +866,7 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
           </div>
         </SlidePanel>
 
-        <SlidePanel 
-          isOpen={showPanel === 'edit-user'} 
-          onClose={() => { setShowPanel(null); setEditingUser(null); }} 
-          title={`Edit ${editingUser?.role === 'teacher' ? 'Teacher' : 'Student'} Details`}
-        >
-          {editingUser && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Full Name</label>
-                <Input 
-                  placeholder="Enter full name" 
-                  value={editingUser.name} 
-                  onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })} 
-                />
-              </div>
-              
-              {editingUser.role === 'teacher' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Subject</label>
-                  <Input 
-                    placeholder="Teaching subject" 
-                    value={editingUser.subject || ''} 
-                    onChange={(e) => setEditingUser({ ...editingUser, subject: e.target.value })} 
-                  />
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Username</label>
-                <Input 
-                  placeholder="Login username" 
-                  value={editingUser.username} 
-                  onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })} 
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Password</label>
-                <Input 
-                  type="text" 
-                  placeholder="Set password" 
-                  value={editingUser.password} 
-                  onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })} 
-                />
-                <p className="text-xs text-muted-foreground italic">Password is visible for admin editing.</p>
-              </div>
-
-              {editingUser.role === 'student' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Class</label>
-                  <select 
-                    className="w-full h-10 px-3 rounded-lg border border-input bg-background" 
-                    value={editingUser.classId || ''} 
-                    onChange={(e) => setEditingUser({ ...editingUser, classId: e.target.value })}
-                  >
-                    <option value="">Select a class</option>
-                    {classes.map(c => <option key={c.id} value={c.id}>{c.name} (Grade {c.grade})</option>)}
-                  </select>
-                </div>
-              )}
-
-              <div className="pt-4">
-                <Button 
-                  className="w-full bg-gradient-primary h-11 rounded-xl shadow-lg" 
-                  onClick={handleUpdateUser}
-                  disabled={isSubmitting}
-                >
-                  <Save className="w-4 h-4 mr-2" /> 
-                  {isSubmitting ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </div>
-            </div>
-          )}
-        </SlidePanel>
-
+        
         <SlidePanel isOpen={showPanel === 'popup'} onClose={() => setShowPanel(null)} title="Social Media Popup Settings">
           <div className="space-y-6">
             <div className="p-4 rounded-2xl bg-muted/50 border border-border/50 space-y-4">
@@ -1069,42 +980,29 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
                     <div className="w-12 h-12 rounded-2xl bg-gradient-primary flex items-center justify-center"><span className="font-display font-bold text-primary-foreground">{t.name.charAt(0)}</span></div>
                     <div><h4 className="font-semibold">{t.name}</h4><p className="text-sm text-muted-foreground">{t.subject}</p><p className="text-xs text-muted-foreground">@{t.username}</p></div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-primary hover:text-primary hover:bg-primary/10 hidden sm:flex"
-                      onClick={() => {
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => {
                         setEditingUser({ ...t, role: 'teacher' });
                         setShowPanel('edit-user');
-                      }}
-                    >
-                      <Cog className="w-4 h-4 mr-2" /> Edit
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => {
-                          setEditingUser({ ...t, role: 'teacher' });
-                          setShowPanel('edit-user');
-                        }}>
-                          <Cog className="w-4 h-4 mr-2" /> Edit Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          setSelectedUser({ id: t.id, name: t.name, role: 'teacher' });
-                          setShowPanel('change-password');
-                        }}>
-                          <Lock className="w-4 h-4 mr-2" /> Change Password
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => dbRemove(`teachers/${t.id}`)} className="text-destructive">
-                          <Trash2 className="w-4 h-4 mr-2" /> Delete Teacher
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                      }}>
+                        <Cog className="w-4 h-4 mr-2" /> Edit Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setSelectedUser({ id: t.id, name: t.name, role: 'teacher' });
+                        setShowPanel('change-password');
+                      }}>
+                        <Lock className="w-4 h-4 mr-2" /> Change Password
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => dbRemove(`teachers/${t.id}`)} className="text-destructive">
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete Teacher
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardContent>
             </Card>
@@ -1346,48 +1244,35 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
                     <div className="w-12 h-12 rounded-2xl bg-gradient-success flex items-center justify-center"><span className="font-display font-bold text-primary-foreground">{s.name.charAt(0)}</span></div>
                     <div><h4 className="font-semibold">{s.name}</h4><p className="text-sm text-muted-foreground">{s.className}</p><p className="text-xs text-muted-foreground">@{s.username}</p></div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-primary hover:text-primary hover:bg-primary/10 hidden sm:flex"
-                      onClick={() => {
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => {
                         setEditingUser({ ...s, role: 'student' });
                         setShowPanel('edit-user');
-                      }}
-                    >
-                      <Cog className="w-4 h-4 mr-2" /> Edit
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => {
-                          setEditingUser({ ...s, role: 'student' });
-                          setShowPanel('edit-user');
-                        }}>
-                          <Cog className="w-4 h-4 mr-2" /> Edit Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleGraduateStudent(s)}>
-                          <TrendingUp className="w-4 h-4 mr-2 text-green-500" /> Graduate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDemoteStudent(s)}>
-                          <TrendingUp className="w-4 h-4 mr-2 text-orange-500 rotate-180" /> Demote
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          setSelectedUser({ id: s.id, name: s.name, role: 'student' });
-                          setShowPanel('change-password');
-                        }}>
-                          <Lock className="w-4 h-4 mr-2" /> Change Password
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleExitStudent(s)}>
-                          <Trash2 className="w-4 h-4 mr-2 text-destructive" /> Exit School
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                      }}>
+                        <Cog className="w-4 h-4 mr-2" /> Edit Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleGraduateStudent(s)}>
+                        <TrendingUp className="w-4 h-4 mr-2 text-green-500" /> Graduate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDemoteStudent(s)}>
+                        <TrendingUp className="w-4 h-4 mr-2 text-orange-500 rotate-180" /> Demote
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setSelectedUser({ id: s.id, name: s.name, role: 'student' });
+                        setShowPanel('change-password');
+                      }}>
+                        <Lock className="w-4 h-4 mr-2" /> Change Password
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleExitStudent(s)}>
+                        <Trash2 className="w-4 h-4 mr-2 text-destructive" /> Exit School
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardContent>
             </Card>
@@ -1496,6 +1381,89 @@ const AdminDashboard = forwardRef<HTMLDivElement, AdminDashboardProps>(({ curren
           )}
         </SlidePanel>
       </div>
+    );
+  }
+
+  // Global edit panel that should be available on all pages
+  if (showPanel === 'edit-user') {
+    return (
+      <>
+        <div ref={ref} />
+        <SlidePanel 
+          isOpen={showPanel === 'edit-user'} 
+          onClose={() => { setShowPanel(null); setEditingUser(null); }} 
+          title={`Edit ${editingUser?.role === 'teacher' ? 'Teacher' : 'Student'} Details`}
+        >
+          {editingUser && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Full Name</label>
+                <Input 
+                  placeholder="Enter full name" 
+                  value={editingUser.name} 
+                  onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })} 
+                />
+              </div>
+              
+              {editingUser.role === 'teacher' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Subject</label>
+                  <Input 
+                    placeholder="Teaching subject" 
+                    value={editingUser.subject || ''} 
+                    onChange={(e) => setEditingUser({ ...editingUser, subject: e.target.value })} 
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Username</label>
+                <Input 
+                  placeholder="Login username" 
+                  value={editingUser.username} 
+                  onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })} 
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Password</label>
+                <Input 
+                  type="text" 
+                  placeholder="Set password" 
+                  value={editingUser.password} 
+                  onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })} 
+                />
+                <p className="text-xs text-muted-foreground italic">Password is visible for admin editing.</p>
+              </div>
+
+              {editingUser.role === 'student' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Class</label>
+                  <select 
+                    className="w-full h-10 px-3 rounded-lg border border-input bg-background" 
+                    value={editingUser.classId || ''} 
+                    onChange={(e) => setEditingUser({ ...editingUser, classId: e.target.value })}
+                  >
+                    <option value="">Select a class</option>
+                    {classes.map(c => <option key={c.id} value={c.id}>{c.name} (Grade {c.grade})</option>)}
+                  </select>
+                </div>
+              )}
+
+              <div className="pt-4">
+                <Button 
+                  className="w-full bg-gradient-primary h-11 rounded-xl shadow-lg" 
+                  onClick={handleUpdateUser}
+                  disabled={isSubmitting}
+                >
+                  <Save className="w-4 h-4 mr-2" /> 
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </SlidePanel>
+      </>
     );
   }
 
