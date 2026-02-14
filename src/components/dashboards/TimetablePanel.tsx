@@ -45,8 +45,6 @@ const TimetablePanel: React.FC<TimetablePanelProps> = ({ currentPage }) => {
   const [classes, setClasses] = useState<Class[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [showAddPanel, setShowAddPanel] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [newEntry, setNewEntry] = useState({
     subject: '',
     day: 'Monday',
@@ -58,52 +56,37 @@ const TimetablePanel: React.FC<TimetablePanelProps> = ({ currentPage }) => {
   useEffect(() => {
     const unsubs = [
       dbListen('timetable', (data) => {
-        try {
-          if (data) {
-            const entries = Object.entries(data).map(([id, e]: [string, any]) => ({ id, ...e }));
-            setTimetable(entries);
-            setError(null);
-          } else {
-            setTimetable([]);
-          }
-          setIsLoading(false);
-        } catch (err) {
-          console.error('Error loading timetable:', err);
-          setError('Failed to load timetable data');
-          setIsLoading(false);
+        if (data) {
+          const entries = Object.entries(data).map(([id, e]: [string, any]) => ({ id, ...e }));
+          setTimetable(entries);
+        } else {
+          setTimetable([]);
         }
       }),
       dbListen('classes', (data) => {
-        try {
-          if (data) {
-            const classList = Object.entries(data).map(([id, c]: [string, any]) => ({ id, ...c }));
-            
-            if (user?.role === 'teacher') {
-              const myClasses = classList.filter(c => c.teacherId === user.id);
-              setClasses(myClasses);
-              if (myClasses.length > 0 && !selectedClass) {
-                setSelectedClass(myClasses[0].id);
-              }
-            } else if (user?.role === 'student') {
-              const myClass = classList.find(c => c.id === user.classId);
-              if (myClass) {
-                setClasses([myClass]);
-              }
-              if (user.classId) {
-                setSelectedClass(user.classId);
-              }
-            } else {
-              setClasses(classList);
-              if (classList.length > 0 && !selectedClass) {
-                setSelectedClass(classList[0].id);
-              }
+        if (data) {
+          const classList = Object.entries(data).map(([id, c]: [string, any]) => ({ id, ...c }));
+          
+          if (user?.role === 'teacher') {
+            const myClasses = classList.filter(c => c.teacherId === user.id);
+            setClasses(myClasses);
+            if (myClasses.length > 0 && !selectedClass) {
+              setSelectedClass(myClasses[0].id);
+            }
+          } else if (user?.role === 'student') {
+            const myClass = classList.find(c => c.id === user.classId);
+            if (myClass) {
+              setClasses([myClass]);
+            }
+            if (user.classId) {
+              setSelectedClass(user.classId);
+            }
+          } else {
+            setClasses(classList);
+            if (classList.length > 0 && !selectedClass) {
+              setSelectedClass(classList[0].id);
             }
           }
-          setIsLoading(false);
-        } catch (err) {
-          console.error('Error loading classes:', err);
-          setError('Failed to load classes');
-          setIsLoading(false);
         }
       })
     ];
@@ -172,43 +155,18 @@ const TimetablePanel: React.FC<TimetablePanelProps> = ({ currentPage }) => {
 
   return (
     <div className="space-y-6">
-      {/* Loading State */}
-      {isLoading && (
-        <div className="flex items-center justify-center py-16">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading timetable...</p>
-          </div>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-display font-bold">
+            {user?.role === 'admin' ? 'All Timetables' : user?.role === 'teacher' ? 'Class Timetable' : 'My Schedule'}
+          </h2>
+          <p className="text-muted-foreground mt-1">
+            {user?.role === 'admin' ? 'View and manage all class schedules' : 
+             user?.role === 'teacher' ? 'Manage your class schedules' : 
+             'View your weekly class schedule'}
+          </p>
         </div>
-      )}
-
-      {/* Error State */}
-      {error && (
-        <div className="flex items-center justify-center py-16">
-          <div className="text-center">
-            <p className="text-destructive font-semibold">Error: {error}</p>
-            <Button onClick={() => window.location.reload()} className="mt-4">
-              Try Again
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Content */}
-      {!isLoading && !error && (
-        <>
-          {/* Header */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-display font-bold">
-                {user?.role === 'admin' ? 'All Timetables' : user?.role === 'teacher' ? 'Class Timetable' : 'My Schedule'}
-              </h2>
-              <p className="text-muted-foreground mt-1">
-                {user?.role === 'admin' ? 'View and manage all class schedules' : 
-                   user?.role === 'teacher' ? 'Manage your class schedules' : 
-                   'View your weekly class schedule'}
-              </p>
-            </div>
         <div className="flex items-center gap-3">
           {classes.length > 1 && (
             <select
@@ -429,9 +387,8 @@ const TimetablePanel: React.FC<TimetablePanelProps> = ({ currentPage }) => {
           </Button>
         </div>
       </SlidePanel>
-        </>
-      )}
     </div>
+
   );
 };
 
