@@ -142,6 +142,46 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
     toast({ title: "Success", description: "Student enrolled successfully" });
   };
 
+  const handleGraduateStudent = async (studentId: string) => {
+    try {
+      await dbUpdate(`students/${studentId}`, { 
+        status: 'graduated', 
+        classId: 'graduated', 
+        className: 'Graduated',
+        updatedAt: new Date().toISOString() 
+      });
+      toast({ title: "Success", description: "Student graduated successfully" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to graduate student", variant: "destructive" });
+    }
+  };
+
+  const handleDemoteStudent = async (studentId: string) => {
+    try {
+      await dbUpdate(`students/${studentId}`, { 
+        status: 'demoted',
+        updatedAt: new Date().toISOString() 
+      });
+      toast({ title: "Success", description: "Student demoted successfully" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to demote student", variant: "destructive" });
+    }
+  };
+
+  const handleRemoveStudent = async (studentId: string) => {
+    if (!window.confirm("Are you sure you want to remove this student? This will unenroll them from the class.")) return;
+    try {
+      await dbUpdate(`students/${studentId}`, { 
+        classId: '', 
+        className: 'Unassigned',
+        updatedAt: new Date().toISOString() 
+      });
+      toast({ title: "Success", description: "Student removed from class" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to remove student", variant: "destructive" });
+    }
+  };
+
   const handleExportStudents = (classId: string, className: string) => {
     const classStudents = students.filter(s => s.classId === classId);
     if (classStudents.length === 0) {
@@ -676,9 +716,47 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
                     <div className="w-14 h-14 rounded-2xl bg-gradient-primary flex items-center justify-center"><span className="font-display font-bold text-xl text-primary-foreground">{cls.grade}</span></div>
                     <div><h4 className="text-lg font-semibold">{cls.name}</h4><p className="text-sm text-muted-foreground">{classStudents.length} students</p></div>
                   </div>
-                  <div className="space-y-2">
-                    {classStudents.slice(0, 3).map(s => (<div key={s.id} className="flex items-center gap-2 text-sm text-muted-foreground"><div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">{s.name.charAt(0)}</div>{s.name}</div>))}
-                    {classStudents.length > 3 && <p className="text-xs text-muted-foreground">+{classStudents.length - 3} more</p>}
+                  <div className="space-y-3">
+                    {classStudents.map(s => (
+                      <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 group">
+                        <div className="flex items-center gap-2 text-sm">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                            {s.name.charAt(0)}
+                          </div>
+                          <span className="font-medium">{s.name}</span>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-success hover:text-success hover:bg-success/10" 
+                            onClick={() => handleGraduateStudent(s.id)}
+                            title="Graduate"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-warning hover:text-warning hover:bg-warning/10" 
+                            onClick={() => handleDemoteStudent(s.id)}
+                            title="Demote"
+                          >
+                            <TrendingUp className="w-4 h-4 rotate-180" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" 
+                            onClick={() => handleRemoveStudent(s.id)}
+                            title="Remove"
+                          >
+                            <UserX className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {classStudents.length === 0 && <p className="text-xs text-muted-foreground italic">No students yet</p>}
                   </div>
                   <div className="flex gap-2 mt-4">
                     <Button
