@@ -13,7 +13,7 @@ import {
   Check, X, Plus, BookOpen, Calendar, FileText, ClipboardCheck, 
   Send, Users, Clock, AlertCircle, CheckCircle2, Megaphone, Trash2,
   TrendingUp, UserCheck, UserX, ChevronDown, ChevronUp, Save, Eye, Link, ExternalLink,
-  Download, Upload
+  Download, Upload, ChevronRight
 } from 'lucide-react';
 
 interface Student { id: string; name: string; classId: string; className: string; username: string; }
@@ -142,32 +142,6 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
     toast({ title: "Success", description: "Student enrolled successfully" });
   };
 
-  const handleGraduateStudent = async (studentId: string) => {
-    try {
-      await dbUpdate(`students/${studentId}`, { 
-        status: 'graduated', 
-        classId: 'graduated', 
-        className: 'Graduated',
-        updatedAt: new Date().toISOString() 
-      });
-      toast({ title: "Success", description: "Student graduated successfully" });
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to graduate student", variant: "destructive" });
-    }
-  };
-
-  const handleDemoteStudent = async (studentId: string) => {
-    try {
-      await dbUpdate(`students/${studentId}`, { 
-        status: 'demoted',
-        updatedAt: new Date().toISOString() 
-      });
-      toast({ title: "Success", description: "Student demoted successfully" });
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to demote student", variant: "destructive" });
-    }
-  };
-
   const handleRemoveStudent = async (studentId: string) => {
     if (!window.confirm("Are you sure you want to remove this student? This will unenroll them from the class.")) return;
     try {
@@ -181,6 +155,8 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
       toast({ title: "Error", description: "Failed to remove student", variant: "destructive" });
     }
   };
+
+  // Removed handleGraduateStudent and handleDemoteStudent as requested
 
   const handleExportStudents = (classId: string, className: string) => {
     const classStudents = students.filter(s => s.classId === classId);
@@ -705,7 +681,9 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
   if (currentPage === 'classes') {
     return (
       <div ref={ref} className="space-y-6">
-        <div><h3 className="text-2xl font-display font-bold">My Classes</h3><p className="text-muted-foreground">View your classes</p></div>
+        <div className="flex items-center justify-between">
+          <div><h3 className="text-2xl font-display font-bold">My Classes</h3><p className="text-muted-foreground">View your classes</p></div>
+        </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {myClasses.map((cls, i) => {
             const classStudents = students.filter(s => s.classId === cls.id);
@@ -716,63 +694,39 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
                     <div className="w-14 h-14 rounded-2xl bg-gradient-primary flex items-center justify-center"><span className="font-display font-bold text-xl text-primary-foreground">{cls.grade}</span></div>
                     <div><h4 className="text-lg font-semibold">{cls.name}</h4><p className="text-sm text-muted-foreground">{classStudents.length} students</p></div>
                   </div>
-                  <div className="space-y-3">
-                    {classStudents.map(s => (
-                      <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 group">
-                        <div className="flex items-center gap-2 text-sm">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                            {s.name.charAt(0)}
-                          </div>
-                          <span className="font-medium">{s.name}</span>
-                        </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-success hover:text-success hover:bg-success/10" 
-                            onClick={() => handleGraduateStudent(s.id)}
-                            title="Graduate"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-warning hover:text-warning hover:bg-warning/10" 
-                            onClick={() => handleDemoteStudent(s.id)}
-                            title="Demote"
-                          >
-                            <TrendingUp className="w-4 h-4 rotate-180" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" 
-                            onClick={() => handleRemoveStudent(s.id)}
-                            title="Remove"
-                          >
-                            <UserX className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    {classStudents.length === 0 && <p className="text-xs text-muted-foreground italic">No students yet</p>}
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      className="flex-1 bg-gradient-primary"
+                  
+                  <div className="flex flex-col gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-between group"
                       onClick={() => {
-                        setNewStudent({ name: '', username: '', password: '', classId: cls.id });
-                        setShowPanel('student');
+                        setSelectedClass(cls.id);
+                        setShowPanel('view-students');
                       }}
                     >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Student
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-primary" />
+                        <span>Show Students</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 opacity-50 group-hover:translate-x-1 transition-transform" />
                     </Button>
-                    <Button variant="outline" size="icon" onClick={() => handleExportStudents(cls.id, cls.name)} title="Export Students"><Download className="w-4 h-4" /></Button>
-                    <div className="relative">
-                      <input type="file" accept=".csv" className="hidden" id={`import-students-${cls.id}`} onChange={(e) => handleImportStudents(e, cls.id)} />
-                      <Button variant="outline" size="icon" onClick={() => document.getElementById(`import-students-${cls.id}`)?.click()} title="Import Students"><Upload className="w-4 h-4" /></Button>
+
+                    <div className="flex gap-2">
+                      <Button
+                        className="flex-1 bg-gradient-primary"
+                        onClick={() => {
+                          setNewStudent({ name: '', username: '', password: '', classId: cls.id });
+                          setShowPanel('student');
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Student
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={() => handleExportStudents(cls.id, cls.name)} title="Export Students"><Download className="w-4 h-4" /></Button>
+                      <div className="relative">
+                        <input type="file" accept=".csv" className="hidden" id={`import-students-${cls.id}`} onChange={(e) => handleImportStudents(e, cls.id)} />
+                        <Button variant="outline" size="icon" onClick={() => document.getElementById(`import-students-${cls.id}`)?.click()} title="Import Students"><Upload className="w-4 h-4" /></Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -780,6 +734,50 @@ const TeacherDashboard = forwardRef<HTMLDivElement, TeacherDashboardProps>(({ cu
             );
           })}
         </div>
+
+        {/* View Students SlidePanel */}
+        <SlidePanel
+          isOpen={showPanel === 'view-students'}
+          onClose={() => setShowPanel(null)}
+          title={`Students - ${myClasses.find(c => c.id === selectedClass)?.name}`}
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              {getClassStudents().map((student, i) => (
+                <Card key={student.id} className="animate-fade-in overflow-hidden" style={{ animationDelay: `${i * 0.05}s` }}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                          {student.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-sm">{student.name}</h4>
+                          <p className="text-xs text-muted-foreground">@{student.username}</p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => handleRemoveStudent(student.id)}
+                        title="Remove from class"
+                      >
+                        <UserX className="w-5 h-5" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {getClassStudents().length === 0 && (
+                <div className="text-center py-12 text-muted-foreground italic">
+                  No students in this class yet.
+                </div>
+              )}
+            </div>
+          </div>
+        </SlidePanel>
+
         <SlidePanel
           isOpen={showPanel === 'student'}
           onClose={() => setShowPanel(null)}
