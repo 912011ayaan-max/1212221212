@@ -68,10 +68,7 @@ const TimetablePanel: React.FC<TimetablePanelProps> = ({ currentPage }) => {
           const classList = Object.entries(data).map(([id, c]: [string, any]) => ({ id, ...c }));
           
           if (user?.role === 'teacher') {
-            const myClasses = classList.filter(c => 
-              c.teacherId === user.id || 
-              (c.secondaryTeachers || []).some((st: any) => st.id === user.id)
-            );
+            const myClasses = classList.filter(c => c.teacherId === user.id);
             setClasses(myClasses);
             if (myClasses.length > 0 && !selectedClass) {
               setSelectedClass(myClasses[0].id);
@@ -120,24 +117,10 @@ const TimetablePanel: React.FC<TimetablePanelProps> = ({ currentPage }) => {
     return sorted;
   }, [timetable, selectedClass]);
 
-  // Helper to check if a time is within an entry's range
-  const isTimeInEntry = (entry: TimetableEntry, startTime: string, endTime: string) => {
-    const toMin = (t: string) => {
-      const [h, m] = t.split(':').map(Number);
-      return h * 60 + m;
-    };
-    const eStart = toMin(entry.startTime);
-    const eEnd = toMin(entry.endTime);
-    const sStart = toMin(startTime);
-    const sEnd = toMin(endTime);
-    
-    // Entry covers this slot if it starts at or before the slot start 
-    // AND ends at or after the slot end
-    return eStart <= sStart && eEnd >= sEnd;
-  };
-
-  const getEntryForSlot = (day: string, startTime: string, endTime: string) => {
-    return getFilteredTimetable().find(t => t.day === day && isTimeInEntry(t, startTime, endTime));
+  const getEntryForSlot = (day: string, time: string) => {
+    return getFilteredTimetable().find(
+      t => t.day === day && t.startTime === time
+    );
   };
 
   const handleAddEntry = async () => {
@@ -241,58 +224,37 @@ const TimetablePanel: React.FC<TimetablePanelProps> = ({ currentPage }) => {
                 </tr>
               </thead>
               <tbody>
-                {timeSlots.slice(0, -1).map((time, index) => {
-                  const endTime = timeSlots[index + 1];
-                  return (
-                    <tr key={time} className="hover:bg-muted/20 transition-colors">
-                      <td className="p-4 border-b border-border/50 font-medium text-muted-foreground whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-foreground">{time}</span>
-                          <span className="text-xs opacity-50">{endTime}</span>
-                        </div>
-                      </td>
-                      {DAYS.map(day => {
-                        const entry = getEntryForSlot(day, time, endTime);
-                        const isStart = entry?.startTime === time;
-                        
-                        return (
-                          <td key={`${day}-${time}`} className="p-1 border-b border-border/50 align-top min-w-[120px]">
-                            {entry ? (
-                              <div className={`group relative p-2 rounded-lg border transition-all animate-fade-in ${
-                                isStart 
-                                  ? 'bg-primary/10 border-primary/20 shadow-sm' 
-                                  : 'bg-primary/5 border-transparent opacity-50'
-                              }`}>
-                                {isStart ? (
-                                  <>
-                                    <p className="font-bold text-xs text-primary truncate" title={entry.subject}>{entry.subject}</p>
-                                    <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
-                                      <Clock className="w-2 h-2" />
-                                      <span>{entry.startTime}-{entry.endTime}</span>
-                                    </div>
-                                    {entry.room && <p className="text-[10px] text-muted-foreground truncate">Rm: {entry.room}</p>}
-                                    {canEdit && (
-                                      <button
-                                        onClick={() => handleDeleteEntry(entry.id)}
-                                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 rounded bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all"
-                                      >
-                                        <Trash2 className="w-2 h-2" />
-                                      </button>
-                                    )}
-                                  </>
-                                ) : (
-                                  <div className="h-4" /> // Continuation of entry above
-                                )}
-                              </div>
-                            ) : (
-                              <div className="h-12 rounded-lg border-2 border-dashed border-border/30 hover:border-border/60 transition-colors" />
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
+                {timeSlots.slice(0, -1).map((time, index) => (
+                  <tr key={time} className="hover:bg-muted/20 transition-colors">
+                    <td className="p-4 border-b border-border/50 font-medium text-muted-foreground">
+                      {time} - {timeSlots[index + 1]}
+                    </td>
+                    {DAYS.map(day => {
+                      const entry = getEntryForSlot(day, time);
+                      return (
+                        <td key={`${day}-${time}`} className="p-2 border-b border-border/50">
+                          {entry ? (
+                            <div className="group relative p-3 rounded-xl bg-primary/10 border border-primary/20 hover:shadow-md transition-all animate-fade-in">
+                              <p className="font-semibold text-sm text-primary">{entry.subject}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{entry.startTime} - {entry.endTime}</p>
+                              {entry.room && <p className="text-xs text-muted-foreground">Room: {entry.room}</p>}
+                              {canEdit && (
+                                <button
+                                  onClick={() => handleDeleteEntry(entry.id)}
+                                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="h-16 rounded-xl border-2 border-dashed border-border/50" />
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
